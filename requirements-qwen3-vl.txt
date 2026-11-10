@@ -1,0 +1,8 @@
+# Qwen3-VL is supported by Transformers 4.57.x; verify on the target Mac.
+torch>=2.6,<3
+transformers==4.57.3
+accelerate>=1.0,<2
+Pillow>=10,<13
+openpyxl>=3.1,<4
+huggingface-hub>=0.34,<1
+safetensors>=0.4,<1
