@@ -1,8 +1,12 @@
-# Qwen3-VL is supported by Transformers 4.57.x; verify on the target Mac.
+# Official Qwen3-VL: Transformers >=4.57; validate this combination on target Mac.
+# Python 3.10–3.12; pip resolves compatible torch/torchvision wheels for the platform.
 torch>=2.6,<3
+torchvision>=0.21,<1
 transformers==4.57.3
 accelerate>=1.0,<2
 Pillow>=10,<13
 openpyxl>=3.1,<4
 huggingface-hub>=0.34,<1
 safetensors>=0.4,<1
+# Official optional visual utilities; this project uses Transformers' processor.
+qwen-vl-utils==0.0.14

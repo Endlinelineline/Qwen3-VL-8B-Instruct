@@ -1,8 +1,10 @@
 import tempfile
 import unittest
+import hashlib
 from pathlib import Path
 from openpyxl import Workbook, load_workbook
 from scripts.qwen3_vl.run_excel import HEADERS, MODEL_NAME, read_requests, run_requests
+from scripts.qwen3_vl.restore_weights import restore
 
 
 class FakeRunner:
@@ -55,6 +57,23 @@ class ExcelTests(unittest.TestCase):
             wb.save(path)
             with self.assertRaises(ValueError):
                 list(read_requests(path))
+
+    def test_restore_weight_parts_and_check_hash(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            parts = root / 'parts'
+            parts.mkdir()
+            (parts / 'a.part').write_bytes(b'abc')
+            (parts / 'b.part').write_bytes(b'def')
+            manifest = {'files': [{'name': 'model.safetensors', 'size': 6,
+                         'sha256': hashlib.sha256(b'abcdef').hexdigest(),
+                         'parts': ['a.part', 'b.part']}]}
+            restore(manifest, parts, root / 'target')
+            self.assertEqual((root / 'target/model.safetensors').read_bytes(), b'abcdef')
+            (parts / 'b.part').write_bytes(b'broken')
+            with self.assertRaises(ValueError):
+                restore(manifest, parts, root / 'bad')
+            self.assertFalse((root / 'bad/model.safetensors').exists())
 
 
 if __name__ == "__main__":

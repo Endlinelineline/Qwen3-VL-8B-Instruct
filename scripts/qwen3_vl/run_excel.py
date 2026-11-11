@@ -11,8 +11,8 @@ from openpyxl import Workbook, load_workbook
 
 ROOT = Path(__file__).resolve().parents[2]
 MODEL_NAME = "Qwen3-VL-8B-Instruct"
-HEADERS = ["prompt", "model", "image_path", "start_time_utc", "end_time_utc",
-           "elapsed_seconds", "input_tokens", "output_tokens", "response", "status", "error"]
+HEADERS = ["prompt", "model", "image_path", "开始时间戳_UTC", "结束时间戳_UTC",
+           "推理耗时_秒", "输入token数量", "输出token数量", "生成答案", "状态", "错误信息"]
 
 
 def utc_now():
@@ -145,7 +145,7 @@ def main(argv=None):
     model_path = args.model_path.expanduser().resolve()
     if not model_path.is_dir():
         parser.error(f"模型目录不存在: {model_path}；请先运行下载脚本")
-    destination = args.output or ROOT / "result" / f"qwen3_vl_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.xlsx"
+    destination = args.output or ROOT / ".result" / f"qwen3_vl_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}.xlsx"
     destination = destination.expanduser().resolve()
     if input_path is not None and destination == input_path:
         parser.error("输出不能与输入文件相同")

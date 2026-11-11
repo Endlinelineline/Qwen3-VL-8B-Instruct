@@ -1,6 +1,6 @@
 # Qwen3-VL-8B-Instruct Excel 推理
 
-本项目从 Excel 逐行读取文本问题与可选本地图片，使用官方 `Qwen/Qwen3-VL-8B-Instruct` 和 Hugging Face Transformers 在本地运行，并在 `result/` 实时保存每条记录。模型只在启动时加载一次。适用于 macOS，Windows 也可使用 CPU；本项目的目标部署机是另一台 Mac。
+本项目从 Excel 逐行读取文本问题与可选本地图片，使用官方 `Qwen/Qwen3-VL-8B-Instruct` 和 Hugging Face Transformers 在本地运行，并在 `.result/` 实时保存每条记录。模型只在启动时加载一次。适用于 macOS，Windows 也可使用 CPU；本项目的目标部署机是另一台 Mac。
 
 指定 GitHub 仓库创建时为空。
 
@@ -25,15 +25,15 @@ python -m scripts.qwen3_vl.create_example
 
 ## 输入与运行
 
-在 `data/example_input.xlsx` 的第一张工作表中，首行必须是 `prompt`、`model`；`image_path` 可选。模型列使用 `Qwen3-VL-8B-Instruct` 或 `Qwen/Qwen3-VL-8B-Instruct`。每行代表一次请求。纯文本时 `image_path` 留空；图文时填写相对于输入 Excel 所在目录的图片路径，或图片绝对路径。示例第二行需要自行放置 `data/example.jpg`；如只测试文本，请删除第二行。
+在 `.data/example_input.xlsx` 的第一张工作表中，首行必须是 `prompt`、`model`；`image_path` 可选。模型列使用 `Qwen3-VL-8B-Instruct` 或 `Qwen/Qwen3-VL-8B-Instruct`。每行代表一次请求。纯文本时 `image_path` 留空；图文时填写相对于输入 Excel 所在目录的图片路径，或图片绝对路径。示例第二行需要自行放置 `.data/example.jpg`；如只测试文本，请删除第二行。
 
 ```bash
-python -m scripts.qwen3_vl.run_excel --input data/example_input.xlsx --max-new-tokens 256
+python -m scripts.qwen3_vl.run_excel --input .data/example_input.xlsx --max-new-tokens 256
 # 外部模型目录：
-python -m scripts.qwen3_vl.run_excel --input data/example_input.xlsx --model-path /path/to/Qwen3-VL-8B-Instruct
+python -m scripts.qwen3_vl.run_excel --input .data/example_input.xlsx --model-path /path/to/Qwen3-VL-8B-Instruct
 # 单条文本、图文冒烟测试；结果同样写入 Excel：
 python -m scripts.qwen3_vl.run_excel --text "你好，请介绍一下你自己。" --max-new-tokens 64
-python -m scripts.qwen3_vl.run_excel --text "请描述图片。" --image data/example.jpg --max-new-tokens 64
+python -m scripts.qwen3_vl.run_excel --text "请描述图片。" --image .data/example.jpg --max-new-tokens 64
 python -m unittest discover -s tests -v
 ```
 
@@ -41,11 +41,11 @@ python -m unittest discover -s tests -v
 
 ## 输出与计时口径
 
-默认输出 `result/qwen3_vl_<时间>_<运行标识>.xlsx`。每行字段：`prompt`、`model`、`image_path`、`start_time_utc`、`end_time_utc`、`elapsed_seconds`、`input_tokens`、`output_tokens`、`response`、`status`、`error`。时间为带时区的 UTC ISO 8601 字符串，耗时使用单调时钟秒数。
+默认输出 `.result/qwen3_vl_<时间>_<运行标识>.xlsx`。每行字段：`prompt`、`model`、`image_path`、`开始时间戳_UTC`、`结束时间戳_UTC`、`推理耗时_秒`、`输入token数量`、`输出token数量`、`生成答案`、`状态`、`错误信息`。时间为带时区的 UTC ISO 8601 字符串，耗时使用单调时钟秒数。
 
 每次请求开始前写入开始时间；处理器完成后立即写入输入 token 数；模型生成结束并同步设备后立即写入结束时间、耗时和输出 token 数；随后保存回答。每一阶段用临时文件与原子替换写入，不是一直打开 Excel 实时流式刷新；在 Excel 程序中可能需要重新打开文件查看。模型加载不在计时中；开始时间位于处理器处理 prompt 之前，结束时间在模型生成完成同步后、答案文本解码之前。为实时落盘，计时区间包含中间 Excel 保存的开销，也包含输入处理和设备传输，不能视作纯 GPU 内核时间。输出 token 数包括生成的特殊结束 token；输入 token 含聊天模板和图片 token。不同运行的时间须在相同软硬件和测量方式下比较。
 
-失败行标记为 `failed`，错误信息写入结果；未生成的结束时间、耗时和 token 字段保持空值。进程意外中断时 `running`／`generated` 行可用于识别未完成请求。Excel 单元格长度有限（32767 字符），长 prompt、回答可能被 Excel 截断，不适合用于保存超长文本。脚本不上传用户数据；`data/`、`result/`、模型、日志和环境均不提交 Git。
+失败行标记为 `failed`，错误信息写入结果；未生成的结束时间、耗时和 token 字段保持空值。进程意外中断时 `running`／`generated` 行可用于识别未完成请求。Excel 单元格长度有限（32767 字符），长 prompt、回答可能被 Excel 截断，不适合用于保存超长文本。脚本不上传用户数据；`.data/`、`.result/`、模型、日志和环境均不提交 Git。
 
 ## 常见问题
 
