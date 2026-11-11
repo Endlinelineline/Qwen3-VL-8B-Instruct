@@ -2,7 +2,7 @@
 
 本项目从 Excel 逐行读取文本问题与可选本地图片，使用官方 `Qwen/Qwen3-VL-8B-Instruct` 和 Hugging Face Transformers 在本地运行，并在 `result/` 实时保存每条记录。模型只在启动时加载一次。适用于 macOS，Windows 也可使用 CPU；本项目的目标部署机是另一台 Mac。
 
-指定 GitHub 仓库创建时为空；并不存在原指令提到的风电项目或已有 `config.py`。本项目是独立部署，不接入风电预测。
+指定 GitHub 仓库创建时为空。
 
 ## 环境和安装
 
