@@ -32,7 +32,8 @@ def read_requests(path):
         header = next(rows, None)
         if not header:
             raise ValueError("输入 Excel 为空")
-        names = [str(x).strip() if x is not None else "" for x in header]
+        aliases = {"问题prompt": "prompt", "问题": "prompt", "所用模型": "model", "图片路径": "image_path"}
+        names = [aliases.get(str(x).strip(), str(x).strip()) if x is not None else "" for x in header]
         if len(set(x for x in names if x)) != len([x for x in names if x]):
             raise ValueError("输入 Excel 的列名不能重复")
         if not {"prompt", "model"}.issubset(names):

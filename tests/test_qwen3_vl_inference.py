@@ -90,6 +90,15 @@ class ExcelTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 list(read_requests(path))
 
+    def test_chinese_input_columns(self):
+        with tempfile.TemporaryDirectory() as d:
+            wb = Workbook()
+            wb.active.append(['问题prompt', '所用模型'])
+            wb.active.append(['你好', MODEL_NAME])
+            path = Path(d) / 'input.xlsx'
+            wb.save(path)
+            self.assertEqual(list(read_requests(path))[0][:2], ('你好', MODEL_NAME))
+
     def test_restore_weight_parts_and_check_hash(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
