@@ -28,6 +28,21 @@ class FakeRunner:
 
 
 class ExcelTests(unittest.TestCase):
+    def test_multiple_prompts_stay_on_their_own_rows(self):
+        class Runner:
+            def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated):
+                on_input_tokens(len(prompt))
+                on_first_token()
+                on_generated(2)
+                return 'answer: ' + prompt
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / 'out.xlsx'
+            run_requests([('first', MODEL_NAME, None), ('second', MODEL_NAME, None)], Runner(), path)
+            rows = list(load_workbook(path, data_only=True).active.values)
+            self.assertEqual([(r[0], r[8]) for r in rows[1:]],
+                             [('first', 'answer: first'), ('second', 'answer: second')])
+            self.assertTrue(all(r[11] is not None for r in rows[1:]))
+
     def test_streamer_ignores_prompt_and_records_first_generated_token_once(self):
         class FakeTokens:
             def numel(self):
