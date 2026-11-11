@@ -64,7 +64,7 @@ python -m pip install -r requirements-qwen3-vl.txt -c macos_offline/constraints.
 
 ### 方法 2：使用 Windows 已下载的离线依赖
 
-GitHub 不包含离线 wheel、Python 安装包、用户 Excel 或运行结果。要离线部署，需从 Windows 项目单独复制以下内容到 Mac 项目相同位置：
+仓库包含通过 Git LFS 存放的离线 wheel、Python 安装包，以及用户同意公开的输入 Excel；运行结果不包含在仓库中。下载 ZIP 时必须在仓库中启用 LFS 文件打包，或通过 Git LFS 拉取。还可从 Windows 项目复制以下内容到 Mac 项目相同位置：
 
 - `macos_offline/wheelhouse/`：Apple Silicon、Python 3.11 所用依赖；
 - `macos_offline/python_installer/`：可选的官方 Python 安装包；
@@ -77,11 +77,11 @@ GitHub 不包含离线 wheel、Python 安装包、用户 Excel 或运行结果�
 bash scripts/qwen3_vl/macos_offline_run.sh
 ```
 
-脚本会在本地创建 `.venv`，从 wheelhouse 校验哈希并安装依赖，然后直接运行 Excel 推理。不要从 Windows 复制 `.venv`；如果已有不兼容的 `.venv`，先将其改名。离线包只针对 Apple Silicon 和 Python 3.11，Intel Mac 请采用在线安装并另行确认模型可运行性。
+脚本会先按需合并并校验模型分片，然后在本地创建 `.venv`，从 wheelhouse 校验哈希并安装依赖，最后直接运行 Excel 推理。不要从 Windows 复制 `.venv`；如果已有不兼容的 `.venv`，先将其改名。离线包只针对 Apple Silicon 和 Python 3.11，Intel Mac 请采用在线安装并另行确认模型可运行性。
 
 ## 六、准备输入并运行
 
-将 `模型推理问题记录v8.xlsx` 复制到 Mac 项目根目录的 `.data/`。它不会随 GitHub 自动下载，因为输入数据被 Git 忽略。保留原表头：
+将 `模型推理问题记录v8.xlsx` 复制到 Mac 项目根目录的 `.data/`。此输入文件已按用户要求公开放入仓库，下载者均可查看。保留原表头：
 
 | 列 | 内容 |
 |---|---|
@@ -110,4 +110,4 @@ python -m scripts.qwen3_vl.run_excel --input '.data/模型推理问题记录v8.x
 - 实时写盘带来额外开销，因此耗时和 TTFT 包含部分处理与保存开销，不是单纯的 GPU 内核时间。模型加载不计入推理耗时。
 - 结果列已有内容会被程序拒绝；请使用结果列为空的原始表。若模型目录不存在或文件不全，请检查第四节的权重准备；文件路径含空格时请使用引号。
 - 内存不足或系统不支持 MPS 时，原始精度模型可能无法加载。请先确认 Mac 的“关于本机”中的芯片和内存；不要把量化模型的测量结果当作原始模型的同精度结果。
-- 离线脚本报缺少 wheelhouse 时，说明只下载了 GitHub 代码；请按方法 2 复制本地离线文件夹，或改用方法 1 联网安装。
+- 离线脚本报缺少 wheelhouse 时，说明离线依赖文件没有正确下载；请检查 ZIP 是否包含实际 LFS 文件、通过 Git LFS 下载，或改用方法 1 联网安装。

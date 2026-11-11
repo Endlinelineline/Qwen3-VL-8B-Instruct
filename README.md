@@ -8,7 +8,7 @@
 
 ## Apple Silicon Mac 离线快捷部署
 
-本机的 `macos_offline/` 包含针对 Apple Silicon、Python 3.11 的 wheel 离线依赖；大型 wheel 和 Python 安装包不上传 Git，必须随项目文件夹一起复制。依赖固定为 PyTorch 2.7.1、torchvision 0.22.1、Transformers 4.57.3 等；此组合尚未在目标 Mac 上实际测试。原生 arm64 Python 3.11 需预先安装；如没有，可打开 `macos_offline/python_installer/python-3.11.9-macos11.pkg` 并按安装器提示安装（这是 Python 3.11 的较旧版本，可优先使用已安装的较新 Python 3.11）。
+本机的 `macos_offline/` 包含针对 Apple Silicon、Python 3.11 的 wheel 离线依赖；wheel 和 Python 安装包已纳入仓库的 Git LFS。依赖固定为 PyTorch 2.7.1、torchvision 0.22.1、Transformers 4.57.3 等；此组合尚未在目标 Mac 上实际测试。原生 arm64 Python 3.11 需预先安装；如没有，可打开 `macos_offline/python_installer/python-3.11.9-macos11.pkg` 并按安装器提示安装（这是 Python 3.11 的较旧版本，可优先使用已安装的较新 Python 3.11）。
 
 将整个项目复制到 Mac 后，打开终端并进入项目根目录（下面以桌面路径为例），执行：
 
@@ -47,7 +47,7 @@ python -m scripts.qwen3_vl.create_example
 
 ## 输入与运行
 
-将你的 `模型推理问题记录v8.xlsx` 放在 `.data/`。此文件不随 Git 上传，因此换到 Mac 时需要单独复制过去。使用工作表 `推理记录` 为当前活动表，保留九列表头：`问题 prompt`、`所用模型`、`开始时间`、`结束时间`、`推理耗时（秒）`、`输入 token 数量`、`输出 token 数量`、`生成答案`、`TTFT（ms）`。开始运行时，程序先把完整输入表复制到 `.result/`，然后仅在对应原行填写结果；要求输入表的结果列为空。若需要图文输入，可增加 `图片路径` 列。
+将你的 `模型推理问题记录v8.xlsx` 放在 `.data/`。此输入文件经用户同意已公开纳入仓库，下载者均可查看。使用工作表 `推理记录` 为当前活动表，保留九列表头：`问题 prompt`、`所用模型`、`开始时间`、`结束时间`、`推理耗时（秒）`、`输入 token 数量`、`输出 token 数量`、`生成答案`、`TTFT（ms）`。开始运行时，程序先把完整输入表复制到 `.result/`，然后仅在对应原行填写结果；要求输入表的结果列为空。若需要图文输入，可增加 `图片路径` 列。
 
 ```bash
 python -m scripts.qwen3_vl.run_excel --input '.data/模型推理问题记录v8.xlsx' --max-new-tokens 256
@@ -73,7 +73,7 @@ python -m unittest discover -s tests -v
 
 每次请求开始前写入开始时间；处理器完成后立即写入输入 token 数；生成首个输出 token 并同步设备时，立即将从开始时间到该时刻的延迟以毫秒写入同一行 `TTFT_ms`；模型生成结束并同步设备后立即写入结束时间、耗时和输出 token 数；随后保存回答。这里 TTFT 是第一个生成 token 的时间，若首 token 是结束标记也计入，而非首个可见文字的时间。每一阶段用临时文件与原子替换写入，不是一直打开 Excel 实时流式刷新；在 Excel 程序中可能需要重新打开文件查看。模型加载不在计时中；开始时间位于处理器处理 prompt 之前，结束时间在模型生成完成同步后、答案文本解码之前。为实时落盘，计时区间包含中间 Excel 保存的开销，也包含输入处理和设备传输，不能视作纯 GPU 内核时间；TTFT 写盘开销包含在完整耗时中，但不包含在已测得的 TTFT 值中。输出 token 数包括生成的特殊结束 token；输入 token 含聊天模板和图片 token。不同运行的时间须在相同软硬件和测量方式下比较。
 
-九列表模板若某行失败，错误打印在终端，未产生的结果保持空值；简表结果会在状态和错误信息列记录失败。Excel 单元格长度有限（32767 字符），长 prompt、回答可能被 Excel 截断，不适合用于保存超长文本。推理脚本不上传用户数据；`.data/`、`.result/`、模型运行目录、日志和环境均不提交 Git。
+九列表模板若某行失败，错误打印在终端，未产生的结果保持空值；简表结果会在状态和错误信息列记录失败。Excel 单元格长度有限（32767 字符），长 prompt、回答可能被 Excel 截断，不适合用于保存超长文本。推理脚本不上传用户运行结果；用户已同意公开的输入表随仓库提供，`.result/`、模型运行目录、日志和环境不提交 Git。
 
 ## 常见问题
 

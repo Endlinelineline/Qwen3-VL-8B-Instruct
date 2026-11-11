@@ -22,6 +22,11 @@ if [[ ! -f macos_offline/requirements-locked.txt || ! -d macos_offline/wheelhous
   echo '未找到离线依赖包，请将 macos_offline 文件夹完整复制到 Mac。' >&2
   exit 1
 fi
+MODEL_DIR='models/pretrained/Qwen3-VL-8B-Instruct'
+if [[ ! -f "$MODEL_DIR/model-00001-of-00004.safetensors" || ! -f "$MODEL_DIR/model-00002-of-00004.safetensors" || ! -f "$MODEL_DIR/model-00003-of-00004.safetensors" || ! -f "$MODEL_DIR/model-00004-of-00004.safetensors" || ! -f "$MODEL_DIR/config.json" ]]; then
+  echo '正在从本地分片还原并校验原始模型权重（需要额外约 18 GB 空间）……'
+  "$PYTHON" -m scripts.qwen3_vl.restore_weights
+fi
 if [[ ! -x .venv/bin/python ]]; then
   if [[ -e .venv ]]; then
     echo '已有 .venv 不是可用的 Mac 虚拟环境，请将其改名后重新运行。' >&2

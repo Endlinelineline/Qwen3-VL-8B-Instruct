@@ -1,3 +1,5 @@
 models/weight_parts/*.part* filter=lfs diff=lfs merge=lfs -text
 models/weight_parts/support_files/* -text
 *.sh text eol=lf
+macos_offline/wheelhouse/*.whl filter=lfs diff=lfs merge=lfs -text
+macos_offline/python_installer/*.pkg filter=lfs diff=lfs merge=lfs -text
