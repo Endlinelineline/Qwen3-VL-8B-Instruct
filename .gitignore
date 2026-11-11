@@ -1,4 +1,6 @@
 .venv/
+macos_offline/wheelhouse/
+macos_offline/python_installer/
 __pycache__/
 *.py[cod]
 .pytest_cache/

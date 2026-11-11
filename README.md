@@ -4,6 +4,21 @@
 
 指定 GitHub 仓库创建时为空。
 
+## Apple Silicon Mac 离线快捷部署
+
+本机的 `macos_offline/` 包含针对 Apple Silicon、Python 3.11 的 wheel 离线依赖；大型 wheel 和 Python 安装包不上传 Git，必须随项目文件夹一起复制。依赖固定为 PyTorch 2.7.1、torchvision 0.22.1、Transformers 4.57.3 等；此组合尚未在目标 Mac 上实际测试。原生 arm64 Python 3.11 需预先安装；如没有，可打开 `macos_offline/python_installer/python-3.11.9-macos11.pkg` 并按安装器提示安装（这是 Python 3.11 的较旧版本，可优先使用已安装的较新 Python 3.11）。
+
+将整个项目复制到 Mac 后，打开终端并进入项目根目录（下面以桌面路径为例），执行：
+
+```bash
+cd ~/Desktop/qwen3_vl_project
+bash scripts/qwen3_vl/macos_offline_run.sh
+```
+
+脚本在项目内创建 `.venv`，从本地 wheelhouse 校验哈希并安装依赖，再读取 `.data/模型推理问题记录v8.xlsx`，输出到 `.result/`。后续执行同一条 `bash` 命令即可。可在脚本后添加参数指定不同输入，例如 `bash scripts/qwen3_vl/macos_offline_run.sh --input .data/other.xlsx`。脚本不自动安装 Python 或覆盖已有结果。如果以前从别的电脑复制了 `.venv`，请先将其改名，再运行脚本。
+
+该离线包不适用于 Intel Mac；需要 Apple Silicon 原生终端。模型对内存和系统版本有要求，目标机器的实际兼容性需现场验证。
+
 ## 环境和安装
 
 - 建议 Apple Silicon Mac，Python 3.10–3.12；Apple MPS 使用 float16。官方 BF16 权重约 17.5 GB，加载、KV 缓存、图片和系统还需额外内存；请在目标 Mac 上检查统一内存及空闲磁盘，16 GB 统一内存通常不足以舒适运行原始精度模型。当前未获取目标 Mac 的具体配置，不能保证可运行。
