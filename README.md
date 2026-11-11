@@ -9,6 +9,7 @@
 - 建议 Apple Silicon Mac，Python 3.10–3.12；Apple MPS 使用 float16。官方 BF16 权重约 17.5 GB，加载、KV 缓存、图片和系统还需额外内存；请在目标 Mac 上检查统一内存及空闲磁盘，16 GB 统一内存通常不足以舒适运行原始精度模型。当前未获取目标 Mac 的具体配置，不能保证可运行。
 - Intel Mac 自动使用 CPU 和 float32，速度较慢且内存需求更高；这不是量化模型。Windows 无 MPS 时也使用 CPU。若内存不足，应另外评估量化模型，并注明模型来源与精度。
 - 官方模型：[Qwen/Qwen3-VL-8B-Instruct](https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct)；[Transformers Qwen3-VL 文档](https://huggingface.co/docs/transformers/v4.57.3/model_doc/qwen3_vl)。这里固定 Transformers 4.57.3，尚未在目标 Mac 上验证版本组合。
+- `vendor/transformers-4.57.3-py3-none-any.whl` 保存了 Transformers 官方发行包，其中包括 Qwen3-VL 的模型实现代码和许可证。该包为跨平台 Python wheel，但并不包含 PyTorch 等其他依赖；安装 `requirements-qwen3-vl.txt` 仍需下载适用于目标 Mac 的依赖包。
 
 ```bash
 git clone https://github.com/Endlinelineline/Qwen3-VL-8B-Instruct.git
