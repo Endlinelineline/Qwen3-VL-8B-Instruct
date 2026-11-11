@@ -29,7 +29,7 @@ python -m scripts.qwen3_vl.create_example
 
 ## 输入与运行
 
-在 `.data/example_input.xlsx` 的第一张工作表中，首行必须是 `prompt`、`model`；`image_path` 可选。模型列使用 `Qwen3-VL-8B-Instruct` 或 `Qwen/Qwen3-VL-8B-Instruct`。每行代表一次请求。纯文本时 `image_path` 留空；图文时填写相对于输入 Excel 所在目录的图片路径，或图片绝对路径。示例第二行需要自行放置 `.data/example.jpg`；如只测试文本，请删除第二行。
+在 `.data/example_input.xlsx` 的第一张工作表中，首行必须包含 `prompt`、`model`；也可分别写成 `问题prompt`、`所用模型`。`image_path`（或 `图片路径`）可选。模型列使用 `Qwen3-VL-8B-Instruct` 或 `Qwen/Qwen3-VL-8B-Instruct`。每行代表一次请求。纯文本时图片列留空；图文时填写相对于输入 Excel 所在目录的图片路径，或图片绝对路径。示例第二行需要自行放置 `.data/example.jpg`；如只测试文本，请删除第二行。
 
 ```bash
 python -m scripts.qwen3_vl.run_excel --input .data/example_input.xlsx --max-new-tokens 256
