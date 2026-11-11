@@ -17,11 +17,15 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip
 python -m pip install -r requirements-qwen3-vl.txt
-python -m scripts.qwen3_vl.download_model
 python -m scripts.qwen3_vl.create_example
 ```
 
-下载脚本从 Qwen 官方仓库下载全部权重和配置至 `models/pretrained/Qwen3-VL-8B-Instruct/`。权重约 17.5 GB，下载需要可访问 Hugging Face 的网络和充足磁盘。该目录已由 Git 忽略，不会被上传 GitHub；也可用 `--output` 下载到其他目录。
+模型有两种准备方法，二选一：
+
+1. Git LFS 镜像上传完成后才可还原：先安装 [Git LFS](https://git-lfs.com/)，运行 `git lfs install` 和 `git lfs pull`，然后运行 `python -m scripts.qwen3_vl.restore_weights`。脚本恢复官方原始文件名并验证 SHA-256；分片与原始文件会同时占用磁盘，请预留至少 40 GB 及运行所需空间。
+2. 从 Qwen 官方仓库下载：运行 `python -m scripts.qwen3_vl.download_model`，可用 `--output` 下载到其他目录。
+
+原始完整模型位于 `models/pretrained/Qwen3-VL-8B-Instruct/`，这一运行目录由 Git 忽略。GitHub 镜像上传完成后将以 Git LFS 分片存储权重，不改变本地运行所用的原始文件。权重约 17.5 GB，取决于网络及 GitHub LFS 的账号配额。
 
 ## 输入与运行
 
@@ -41,11 +45,11 @@ python -m unittest discover -s tests -v
 
 ## 输出与计时口径
 
-默认输出 `.result/qwen3_vl_<时间>_<运行标识>.xlsx`。每行字段：`prompt`、`model`、`image_path`、`开始时间戳_UTC`、`结束时间戳_UTC`、`推理耗时_秒`、`输入token数量`、`输出token数量`、`生成答案`、`状态`、`错误信息`。时间为带时区的 UTC ISO 8601 字符串，耗时使用单调时钟秒数。
+默认输出 `.result/qwen3_vl_<时间>_<运行标识>.xlsx`。每行对应一个输入请求，字段：`prompt`、`model`、`image_path`、`开始时间戳_UTC`、`结束时间戳_UTC`、`推理耗时_秒`、`输入token数量`、`输出token数量`、`生成答案`、`状态`、`错误信息`、`TTFT_ms`。时间为带时区的 UTC ISO 8601 字符串，耗时使用单调时钟秒数。
 
-每次请求开始前写入开始时间；处理器完成后立即写入输入 token 数；模型生成结束并同步设备后立即写入结束时间、耗时和输出 token 数；随后保存回答。每一阶段用临时文件与原子替换写入，不是一直打开 Excel 实时流式刷新；在 Excel 程序中可能需要重新打开文件查看。模型加载不在计时中；开始时间位于处理器处理 prompt 之前，结束时间在模型生成完成同步后、答案文本解码之前。为实时落盘，计时区间包含中间 Excel 保存的开销，也包含输入处理和设备传输，不能视作纯 GPU 内核时间。输出 token 数包括生成的特殊结束 token；输入 token 含聊天模板和图片 token。不同运行的时间须在相同软硬件和测量方式下比较。
+每次请求开始前写入开始时间；处理器完成后立即写入输入 token 数；生成首个输出 token 并同步设备时，立即将从开始时间到该时刻的延迟以毫秒写入同一行 `TTFT_ms`；模型生成结束并同步设备后立即写入结束时间、耗时和输出 token 数；随后保存回答。这里 TTFT 是第一个生成 token 的时间，若首 token 是结束标记也计入，而非首个可见文字的时间。每一阶段用临时文件与原子替换写入，不是一直打开 Excel 实时流式刷新；在 Excel 程序中可能需要重新打开文件查看。模型加载不在计时中；开始时间位于处理器处理 prompt 之前，结束时间在模型生成完成同步后、答案文本解码之前。为实时落盘，计时区间包含中间 Excel 保存的开销，也包含输入处理和设备传输，不能视作纯 GPU 内核时间；TTFT 写盘开销包含在完整耗时中，但不包含在已测得的 TTFT 值中。输出 token 数包括生成的特殊结束 token；输入 token 含聊天模板和图片 token。不同运行的时间须在相同软硬件和测量方式下比较。
 
-失败行标记为 `failed`，错误信息写入结果；未生成的结束时间、耗时和 token 字段保持空值。进程意外中断时 `running`／`generated` 行可用于识别未完成请求。Excel 单元格长度有限（32767 字符），长 prompt、回答可能被 Excel 截断，不适合用于保存超长文本。脚本不上传用户数据；`.data/`、`.result/`、模型、日志和环境均不提交 Git。
+失败行标记为 `failed`，错误信息写入结果；未生成的结束时间、耗时和 token 字段保持空值。进程意外中断时 `running`／`generated` 行可用于识别未完成请求。Excel 单元格长度有限（32767 字符），长 prompt、回答可能被 Excel 截断，不适合用于保存超长文本。推理脚本不上传用户数据；`.data/`、`.result/`、模型运行目录、日志和环境均不提交 Git。
 
 ## 常见问题
 
