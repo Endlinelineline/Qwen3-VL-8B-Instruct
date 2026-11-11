@@ -2,6 +2,26 @@
 from pathlib import Path
 
 
+class FirstTokenStreamer:
+    """Transformers sends the prompt first, then generated token IDs."""
+    def __init__(self, callback, sync):
+        self.callback, self.sync = callback, sync
+        self.seen_prompt = False
+        self.seen_first = False
+
+    def put(self, value):
+        if not self.seen_prompt:
+            self.seen_prompt = True
+            return
+        if not self.seen_first and value.numel():
+            self.seen_first = True
+            self.sync()
+            self.callback()
+
+    def end(self):
+        pass
+
+
 class QwenRunner:
     def __init__(self, model_path: Path, device: str = "auto"):
         import torch
@@ -19,7 +39,12 @@ class QwenRunner:
             str(model_path), torch_dtype=dtype, local_files_only=True, low_cpu_mem_usage=True
         ).to(device).eval()
 
-    def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_generated):
+    def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated):
+        def synchronize():
+            if self.device == "mps":
+                self.torch.mps.synchronize()
+            elif self.device == "cuda":
+                self.torch.cuda.synchronize()
         content = []
         if image_path:
             content.append({"type": "image", "image": str(image_path)})
@@ -32,11 +57,9 @@ class QwenRunner:
         input_tokens = int(inputs["input_ids"].shape[-1])
         on_input_tokens(input_tokens)
         with self.torch.inference_mode():
-            output = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False)
-        if self.device == "mps":
-            self.torch.mps.synchronize()
-        elif self.device == "cuda":
-            self.torch.cuda.synchronize()
+            output = self.model.generate(**inputs, max_new_tokens=max_new_tokens, do_sample=False,
+                                         streamer=FirstTokenStreamer(on_first_token, synchronize))
+        synchronize()
         generated = output[0, input_tokens:]
         output_tokens = int(generated.shape[-1])
         on_generated(output_tokens)

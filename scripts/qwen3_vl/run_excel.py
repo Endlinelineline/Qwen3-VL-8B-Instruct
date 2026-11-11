@@ -12,7 +12,7 @@ from openpyxl import Workbook, load_workbook
 ROOT = Path(__file__).resolve().parents[2]
 MODEL_NAME = "Qwen3-VL-8B-Instruct"
 HEADERS = ["prompt", "model", "image_path", "开始时间戳_UTC", "结束时间戳_UTC",
-           "推理耗时_秒", "输入token数量", "输出token数量", "生成答案", "状态", "错误信息"]
+           "推理耗时_秒", "输入token数量", "输出token数量", "生成答案", "状态", "错误信息", "TTFT_ms"]
 
 
 def utc_now():
@@ -94,6 +94,11 @@ def run_requests(requests, runner, destination, max_new_tokens=256):
             sheet.cell(row, 7, count)
             save_atomic(book, destination)  # 输入 token 数量立即写入 Excel
 
+        def on_first_token():
+            first_token_time = time.perf_counter()
+            sheet.cell(row, 12, round((first_token_time - started) * 1000, 3))
+            save_atomic(book, destination)  # 首个输出 token 到达时立即写入 TTFT（毫秒）
+
         def on_generated(count):
             finished = time.perf_counter()
             sheet.cell(row, 5, utc_now())
@@ -103,7 +108,7 @@ def run_requests(requests, runner, destination, max_new_tokens=256):
             save_atomic(book, destination)  # 结束时间、耗时和输出 token 立即写入 Excel
 
         try:
-            answer = runner.infer(prompt, image_path, max_new_tokens, on_input_tokens, on_generated)
+            answer = runner.infer(prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated)
             sheet.cell(row, 9, cell_text(answer))
             sheet.cell(row, 10, "success")
         except Exception as exc:

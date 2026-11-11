@@ -5,18 +5,22 @@ from pathlib import Path
 from openpyxl import Workbook, load_workbook
 from scripts.qwen3_vl.run_excel import HEADERS, MODEL_NAME, read_requests, run_requests
 from scripts.qwen3_vl.restore_weights import restore
+from models.qwen3_vl.inference import FirstTokenStreamer
 
 
 class FakeRunner:
     def __init__(self, target):
         self.target = target
 
-    def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_generated):
+    def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated):
         before = load_workbook(self.target).active
         assert before.cell(2, 4).value and before.cell(2, 10).value == "running"
         on_input_tokens(12)
         middle = load_workbook(self.target).active
         assert middle.cell(2, 7).value == 12 and middle.cell(2, 5).value is None
+        on_first_token()
+        first = load_workbook(self.target).active
+        assert first.cell(2, 12).value >= 0 and first.cell(2, 5).value is None
         on_generated(4)
         after = load_workbook(self.target).active
         assert after.cell(2, 5).value and after.cell(2, 8).value == 4
@@ -24,6 +28,18 @@ class FakeRunner:
 
 
 class ExcelTests(unittest.TestCase):
+    def test_streamer_ignores_prompt_and_records_first_generated_token_once(self):
+        class FakeTokens:
+            def numel(self):
+                return 3
+        events = []
+        streamer = FirstTokenStreamer(lambda: events.append('first'), lambda: events.append('sync'))
+        streamer.put(FakeTokens())
+        self.assertEqual(events, [])
+        streamer.put(FakeTokens())
+        streamer.put(FakeTokens())
+        self.assertEqual(events, ['sync', 'first'])
+
     def test_incremental_saves_and_safe_text(self):
         with tempfile.TemporaryDirectory() as d:
             dest = Path(d) / "out.xlsx"
@@ -33,6 +49,7 @@ class ExcelTests(unittest.TestCase):
             self.assertEqual(sheet.cell(2, 10).value, "success")
             self.assertEqual(sheet.cell(2, 9).value, "'=test output")
             self.assertGreaterEqual(sheet.cell(2, 6).value, 0)
+            self.assertLessEqual(sheet.cell(2, 12).value, sheet.cell(2, 6).value * 1000)
             with self.assertRaises(FileExistsError):
                 run_requests([], FakeRunner(dest), dest)
 
