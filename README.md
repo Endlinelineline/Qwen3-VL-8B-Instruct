@@ -4,6 +4,8 @@
 
 指定 GitHub 仓库创建时为空。
 
+从 GitHub 下载、在 Mac 部署和运行的完整步骤见 [Mac GitHub 部署操作说明](docs/macos_github_deployment.md)。
+
 ## Apple Silicon Mac 离线快捷部署
 
 本机的 `macos_offline/` 包含针对 Apple Silicon、Python 3.11 的 wheel 离线依赖；大型 wheel 和 Python 安装包不上传 Git，必须随项目文件夹一起复制。依赖固定为 PyTorch 2.7.1、torchvision 0.22.1、Transformers 4.57.3 等；此组合尚未在目标 Mac 上实际测试。原生 arm64 Python 3.11 需预先安装；如没有，可打开 `macos_offline/python_installer/python-3.11.9-macos11.pkg` 并按安装器提示安装（这是 Python 3.11 的较旧版本，可优先使用已安装的较新 Python 3.11）。
