@@ -20,9 +20,14 @@ def utc_now():
 
 
 def cell_text(value):
-    # Force Excel text cells to be literal even for untrusted prompt/model output.
-    value = str(value)
-    return "'" + value if value.startswith(("=", "+", "-", "@")) else value
+    return str(value)
+
+
+def write_literal(sheet, row, column, value):
+    # Preserve the exact input/output while preventing Excel formula execution.
+    cell = sheet.cell(row, column)
+    cell.value = cell_text(value)
+    cell.data_type = "s"
 
 
 def read_requests(path):
@@ -43,7 +48,7 @@ def read_requests(path):
             if all(v is None for v in row):
                 continue
             prompt, model = data.get("prompt"), data.get("model")
-            if not isinstance(prompt, str) or not prompt.strip() or prompt.startswith("="):
+            if not isinstance(prompt, str) or not prompt.strip():
                 raise ValueError(f"第 {row_number} 行 prompt 必须为非空纯文本")
             if model not in (MODEL_NAME, "Qwen/" + MODEL_NAME):
                 raise ValueError(f"第 {row_number} 行 model 必须是 {MODEL_NAME}")
@@ -84,8 +89,12 @@ def run_requests(requests, runner, destination, max_new_tokens=256):
     save_atomic(book, destination)
     failures = 0
     for prompt, model, image_path in requests:
-        sheet.append([cell_text(prompt), cell_text(model), cell_text(image_path) if image_path else None])
+        sheet.append([None] * len(HEADERS))
         row = sheet.max_row
+        write_literal(sheet, row, 1, prompt)
+        write_literal(sheet, row, 2, model)
+        if image_path:
+            write_literal(sheet, row, 3, image_path)
         started = time.perf_counter()
         sheet.cell(row, 4, utc_now())
         sheet.cell(row, 10, "running")
@@ -110,12 +119,12 @@ def run_requests(requests, runner, destination, max_new_tokens=256):
 
         try:
             answer = runner.infer(prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated)
-            sheet.cell(row, 9, cell_text(answer))
+            write_literal(sheet, row, 9, answer)
             sheet.cell(row, 10, "success")
         except Exception as exc:
             failures += 1
             sheet.cell(row, 10, "failed")
-            sheet.cell(row, 11, cell_text(f"{type(exc).__name__}: {exc}"))
+            write_literal(sheet, row, 11, f"{type(exc).__name__}: {exc}")
         save_atomic(book, destination)
     book.close()
     return failures

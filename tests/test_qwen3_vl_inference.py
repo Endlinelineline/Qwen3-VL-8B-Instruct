@@ -62,7 +62,8 @@ class ExcelTests(unittest.TestCase):
             sheet = load_workbook(dest).active
             self.assertEqual([c.value for c in sheet[1]], HEADERS)
             self.assertEqual(sheet.cell(2, 10).value, "success")
-            self.assertEqual(sheet.cell(2, 9).value, "'=test output")
+            self.assertEqual(sheet.cell(2, 9).value, "=test output")
+            self.assertEqual(sheet.cell(2, 9).data_type, "s")
             self.assertGreaterEqual(sheet.cell(2, 6).value, 0)
             self.assertLessEqual(sheet.cell(2, 12).value, sheet.cell(2, 6).value * 1000)
             with self.assertRaises(FileExistsError):
