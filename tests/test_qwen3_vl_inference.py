@@ -3,7 +3,8 @@ import unittest
 import hashlib
 from pathlib import Path
 from openpyxl import Workbook, load_workbook
-from scripts.qwen3_vl.run_excel import HEADERS, MODEL_NAME, read_requests, run_requests
+from scripts.qwen3_vl.run_excel import (HEADERS, MODEL_NAME, read_requests, run_requests,
+    template_layout, copy_template, run_template_requests)
 from scripts.qwen3_vl.restore_weights import restore
 from models.qwen3_vl.inference import FirstTokenStreamer
 
@@ -28,6 +29,49 @@ class FakeRunner:
 
 
 class ExcelTests(unittest.TestCase):
+    def test_template_copy_and_incremental_updates_preserve_rows(self):
+        with tempfile.TemporaryDirectory() as d:
+            source, dest = Path(d) / 'in.xlsx', Path(d) / 'out.xlsx'
+            wb = Workbook()
+            ws = wb.active
+            ws.title = '推理记录'
+            ws.append(['问题 prompt', '所用模型', '开始时间', '结束时间', '推理耗时（秒）',
+                       '输入 token 数量', '输出 token 数量', '生成答案', 'TTFT（ms）'])
+            ws.append(['first', MODEL_NAME])
+            ws.append(['second', MODEL_NAME])
+            ws.freeze_panes = 'A2'
+            wb.create_sheet('extra')['A1'] = 'preserved'
+            wb.save(source)
+            requests = list(read_requests(source))
+            layout = template_layout(source)
+            copy_template(source, dest)
+            self.assertEqual(source.read_bytes(), dest.read_bytes())
+
+            class Runner:
+                def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated):
+                    row = 2 if prompt == 'first' else 3
+                    sheet = load_workbook(dest).active
+                    assert sheet.cell(row, 3).value and sheet.cell(row, 4).value is None
+                    on_input_tokens(7)
+                    assert load_workbook(dest).active.cell(row, 6).value == 7
+                    on_first_token()
+                    assert load_workbook(dest).active.cell(row, 9).value is not None
+                    on_generated(3)
+                    sheet = load_workbook(dest).active
+                    assert sheet.cell(row, 4).value and sheet.cell(row, 7).value == 3
+                    return 'answer: ' + prompt
+
+            self.assertEqual(run_template_requests(requests, Runner(), dest, layout), 0)
+            result = load_workbook(dest)
+            self.assertEqual(result.sheetnames, ['推理记录', 'extra'])
+            self.assertEqual(result['extra']['A1'].value, 'preserved')
+            self.assertEqual(result.active.freeze_panes, 'A2')
+            self.assertEqual([(result.active.cell(i, 1).value, result.active.cell(i, 8).value)
+                              for i in (2, 3)], [('first', 'answer: first'), ('second', 'answer: second')])
+            self.assertEqual(load_workbook(source).active['C2'].value, None)
+            with self.assertRaises(FileExistsError):
+                copy_template(source, dest)
+
     def test_multiple_prompts_stay_on_their_own_rows(self):
         class Runner:
             def infer(self, prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated):

@@ -1,6 +1,8 @@
 """Run each Excel row, persisting measurement stages immediately."""
 import argparse
 import os
+import shutil
+import sys
 import tempfile
 import time
 import uuid
@@ -13,6 +15,19 @@ ROOT = Path(__file__).resolve().parents[2]
 MODEL_NAME = "Qwen3-VL-8B-Instruct"
 HEADERS = ["prompt", "model", "image_path", "开始时间戳_UTC", "结束时间戳_UTC",
            "推理耗时_秒", "输入token数量", "输出token数量", "生成答案", "状态", "错误信息", "TTFT_ms"]
+TEMPLATE_HEADERS = {
+    "问题prompt": "prompt", "prompt": "prompt", "问题": "prompt",
+    "所用模型": "model", "model": "model", "图片路径": "image_path", "image_path": "image_path",
+    "开始时间": "start", "结束时间": "end", "推理耗时（秒）": "duration",
+    "输入token数量": "input_tokens", "输出token数量": "output_tokens",
+    "生成答案": "answer", "ttft（ms）": "ttft", "ttft(ms)": "ttft",
+}
+TEMPLATE_REQUIRED = {"prompt", "model", "start", "end", "duration", "input_tokens", "output_tokens", "answer", "ttft"}
+
+
+def header_name(value):
+    normalized = "".join(str(value).split()).casefold() if value is not None else ""
+    return TEMPLATE_HEADERS.get(normalized, normalized)
 
 
 def utc_now():
@@ -37,8 +52,7 @@ def read_requests(path):
         header = next(rows, None)
         if not header:
             raise ValueError("输入 Excel 为空")
-        aliases = {"问题prompt": "prompt", "问题": "prompt", "所用模型": "model", "图片路径": "image_path"}
-        names = [aliases.get(str(x).strip(), str(x).strip()) if x is not None else "" for x in header]
+        names = [header_name(x) for x in header]
         if len(set(x for x in names if x)) != len([x for x in names if x]):
             raise ValueError("输入 Excel 的列名不能重复")
         if not {"prompt", "model"}.issubset(names):
@@ -76,6 +90,77 @@ def save_atomic(book, destination):
     finally:
         if os.path.exists(tmp):
             os.unlink(tmp)
+
+
+def template_layout(path):
+    book = load_workbook(path, read_only=True)
+    try:
+        sheet = book.active
+        header = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
+        names = [header_name(value) for value in header]
+        if len(set(n for n in names if n)) != len([n for n in names if n]):
+            raise ValueError("输入 Excel 的列名不能重复")
+        if not TEMPLATE_REQUIRED.issubset(names):
+            return None
+        columns = {name: index for index, name in enumerate(names, 1) if name}
+        rows = []
+        for row_number, values in enumerate(sheet.iter_rows(min_row=2, values_only=True), 2):
+            if all(value is None for value in values):
+                continue
+            result_fields = TEMPLATE_REQUIRED - {"prompt", "model"}
+            if any(values[columns[name] - 1] is not None for name in result_fields):
+                raise ValueError(f"第 {row_number} 行已有结果，请使用结果列为空的输入表")
+            rows.append(row_number)
+        return sheet.title, columns, rows
+    finally:
+        book.close()
+
+
+def copy_template(source, destination):
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    with source.open("rb") as src, destination.open("xb") as dst:
+        shutil.copyfileobj(src, dst)
+
+
+def run_template_requests(requests, runner, destination, layout, max_new_tokens=256):
+    sheet_name, columns, row_numbers = layout
+    if len(requests) != len(row_numbers):
+        raise ValueError("输入请求与工作表行数不一致")
+    book = load_workbook(destination)
+    sheet = book[sheet_name]
+    failures = 0
+    try:
+        for row, (prompt, model, image_path) in zip(row_numbers, requests):
+            started = time.perf_counter()
+            sheet.cell(row, columns["start"], utc_now())
+            save_atomic(book, destination)
+
+            def on_input_tokens(count):
+                sheet.cell(row, columns["input_tokens"], count)
+                save_atomic(book, destination)
+
+            def on_first_token():
+                elapsed = (time.perf_counter() - started) * 1000
+                sheet.cell(row, columns["ttft"], round(elapsed, 3))
+                save_atomic(book, destination)
+
+            def on_generated(count):
+                elapsed = time.perf_counter() - started
+                sheet.cell(row, columns["end"], utc_now())
+                sheet.cell(row, columns["duration"], round(elapsed, 6))
+                sheet.cell(row, columns["output_tokens"], count)
+                save_atomic(book, destination)
+
+            try:
+                answer = runner.infer(prompt, image_path, max_new_tokens, on_input_tokens, on_first_token, on_generated)
+                write_literal(sheet, row, columns["answer"], answer)
+            except Exception as exc:
+                failures += 1
+                print(f"第 {row} 行推理失败: {type(exc).__name__}: {exc}", file=sys.stderr)
+            save_atomic(book, destination)
+    finally:
+        book.close()
+    return failures
 
 
 def run_requests(requests, runner, destination, max_new_tokens=256):
@@ -148,7 +233,9 @@ def main(argv=None):
     input_path = args.input.expanduser().resolve() if args.input else None
     if input_path:
         requests = list(read_requests(input_path))
+        layout = template_layout(input_path)
     else:
+        layout = None
         if not args.text.strip():
             parser.error("--text 不能为空")
         image_path = args.image.expanduser().resolve() if args.image else None
@@ -164,9 +251,15 @@ def main(argv=None):
     destination = destination.expanduser().resolve()
     if input_path is not None and destination == input_path:
         parser.error("输出不能与输入文件相同")
+    if layout is not None:
+        copy_template(input_path, destination)
+        print(f"已创建初始输出副本: {destination}", flush=True)
     from models.qwen3_vl.inference import QwenRunner
     runner = QwenRunner(model_path, args.device)
-    failures = run_requests(requests, runner, destination, args.max_new_tokens)
+    if layout is None:
+        failures = run_requests(requests, runner, destination, args.max_new_tokens)
+    else:
+        failures = run_template_requests(requests, runner, destination, layout, args.max_new_tokens)
     print(f"结果: {destination}；失败 {failures} 条")
     return 1 if failures else 0
 
