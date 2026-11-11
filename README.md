@@ -23,10 +23,10 @@ python -m scripts.qwen3_vl.create_example
 
 模型有两种准备方法，二选一：
 
-1. Git LFS 镜像上传完成后才可还原：先安装 [Git LFS](https://git-lfs.com/)，运行 `git lfs install` 和 `git lfs pull`，然后运行 `python -m scripts.qwen3_vl.restore_weights`。脚本恢复官方原始文件名并验证 SHA-256；分片与原始文件会同时占用磁盘，请预留至少 40 GB 及运行所需空间。
+1. 从仓库的 Git LFS 镜像还原：先安装 [Git LFS](https://git-lfs.com/)，运行 `git lfs install` 和 `git lfs pull`，然后运行 `python -m scripts.qwen3_vl.restore_weights`。脚本恢复官方原始文件名并验证 SHA-256；分片与原始文件会同时占用磁盘，请预留至少 40 GB 及运行所需空间。
 2. 从 Qwen 官方仓库下载：运行 `python -m scripts.qwen3_vl.download_model`，可用 `--output` 下载到其他目录。
 
-原始完整模型位于 `models/pretrained/Qwen3-VL-8B-Instruct/`，这一运行目录由 Git 忽略。GitHub 镜像上传完成后将以 Git LFS 分片存储权重，不改变本地运行所用的原始文件。权重约 17.5 GB，取决于网络及 GitHub LFS 的账号配额。
+原始完整模型位于 `models/pretrained/Qwen3-VL-8B-Instruct/`，这一运行目录由 Git 忽略。GitHub 镜像以 Git LFS 分片存储权重，不改变本地运行所用的原始文件。权重约 17.5 GB，下载取决于网络及 GitHub LFS 的账号配额。
 
 ## 输入与运行
 

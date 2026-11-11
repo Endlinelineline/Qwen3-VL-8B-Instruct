@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 models/pretrained/
-models/weight_parts/*.part
+models/weight_parts/*.part*
 .data/*
 !.data/.gitkeep
 .result/*
